@@ -30,10 +30,10 @@
         <select id="levelSelect" class="form-select"></select>
     </div>
     <div class="col-md-3">
-        <label for="searchBox" class="form-label">Search (text)</label>
+        <label for="searchBox" class="form-label">Search</label>
         <div class="input-group">
-            <input id="searchBox" type="text" class="form-control" placeholder="Message / Level / App" />
-            <button id="searchBtn" class="btn btn-outline-secondary" type="button">Search</button>
+            <input id="searchBox" type="text" class="form-control" placeholder="message" />
+            <button id="searchBtn" class="btn btn-outline-primary" type="button">Search</button>
         </div>
     </div>
 
@@ -146,7 +146,7 @@
 
         for (const entry of logs) {
             const ts = entry?.timestamp ? new Date(entry.timestamp) : null;
-            const tsText = ts ? ts.toISOString().replace('T', ' ').replace('Z', ' UTC') : '';
+            const tsText = ts ? ts.toISOString().replace('T', ' ').replace('Z', '') : '';
             const xemHref = entry?.id
                 ? `/Telemetry/Details?id=${encodeURIComponent(entry.id)}&timestamp=${encodeURIComponent(entry.timestamp ?? '')}`
                 : null;

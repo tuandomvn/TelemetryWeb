@@ -282,10 +282,10 @@ public sealed class TelemetryStore : IDisposable
     {
         if (idleMinutes <= 0) idleMinutes = 15;
 
-        var nowUtc = DateTimeOffset.Now;
+        var nowUtc = DateTime.Now;
         var idleCutoff = nowUtc.AddMinutes(-idleMinutes);
 
-        var dict = new Dictionary<string, (int countToday, DateTimeOffset? lastLogUtc)>(StringComparer.OrdinalIgnoreCase);
+        var dict = new Dictionary<string, (int countToday, DateTime? lastLogUtc)>(StringComparer.OrdinalIgnoreCase);
 
         // For "Today Summary" we only need logs that happened today.
         // We'll scan only the month file that contains `todayUtc` for performance.
@@ -311,8 +311,8 @@ public sealed class TelemetryStore : IDisposable
                     var app = doc.App;
                     if (string.IsNullOrWhiteSpace(app)) continue;
 
-                    var tsUtc = DateTime.SpecifyKind(doc.Timestamp, DateTimeKind.Utc);
-                    var tsDto = new DateTimeOffset(tsUtc);
+                    //var tsUtc = DateTime.SpecifyKind(doc.Timestamp, DateTimeKind.Utc);
+                    var tsDto = doc.Timestamp;
 
                     if (!dict.TryGetValue(app, out var value))
                     {
@@ -357,7 +357,7 @@ public sealed class TelemetryStore : IDisposable
             return new[] { monthKey };
         }
 
-        var nowUtc = DateTimeOffset.UtcNow;
+        var nowUtc = DateTime.Now;
         var result = new List<string>(_maxMonthsToScan);
         for (var i = 0; i < _maxMonthsToScan; i++)
         {
