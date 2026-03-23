@@ -78,7 +78,7 @@ namespace TelemetryWeb
 
                 var entry = new TelemetryEntry(
                     Id: null,
-                    Timestamp: req.Timestamp ?? DateTimeOffset.UtcNow,
+                    Timestamp: req.Timestamp ?? DateTime.Now,
                     App: appId,
                     Level: req.Level,
                     Message: message);

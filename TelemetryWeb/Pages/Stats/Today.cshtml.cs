@@ -7,7 +7,7 @@ namespace TelemetryWeb.Pages.Stats
     {
         private readonly TelemetryStore _store;
 
-        public DateOnly TodayUtc { get; private set; }
+        public DateOnly Today { get; private set; }
         public int IdleMinutes { get; private set; } = 15;
         public int IdleCount { get; private set; }
 
@@ -22,8 +22,8 @@ namespace TelemetryWeb.Pages.Stats
         {
             IdleMinutes = idleMinutes.HasValue && idleMinutes.Value > 0 ? idleMinutes.Value : 15;
 
-            TodayUtc = DateOnly.FromDateTime(DateTime.UtcNow);
-            Items = _store.GetTodayAppSummaries(TodayUtc, IdleMinutes);
+            Today = DateOnly.FromDateTime(DateTime.UtcNow);
+            Items = _store.GetTodayAppSummaries(Today, IdleMinutes);
             IdleCount = Items.Count(x => x.IsIdle);
         }
     }

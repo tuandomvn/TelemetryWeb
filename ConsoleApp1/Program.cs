@@ -27,14 +27,46 @@ namespace ConsoleApp1
             {
                 var payload = new
                 {
-                    app = "H2H - MT",
+                    app = "VALVE - MT",
                     level = i % 5 == 0 ? "Warning" : "Info",
                     message = string.Format(messages[random.Next(messages.Length)], i),
-                    timestamp = DateTimeOffset.Now
+                    timestamp = DateTime.Now
                 };
 
                 var res = await http.PostAsJsonAsync(endpoint, payload);
-                Console.WriteLine($"[{DateTimeOffset.Now:HH:mm:ss}] Sent #{i} -> {(int)res.StatusCode}");
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Sent #{i} -> {(int)res.StatusCode}");
+
+                await Task.Delay(1000);
+            }
+
+            for (var i = 0; i < 50; i++)
+            {
+                var payload = new
+                {
+                    app = "VALVE - ISO",
+                    level = i % 5 == 0 ? "Warning" : "Info",
+                    message = string.Format(messages[random.Next(messages.Length)], i),
+                    timestamp = DateTime.Now
+                };
+
+                var res = await http.PostAsJsonAsync(endpoint, payload);
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Sent #{i} -> {(int)res.StatusCode}");
+
+                await Task.Delay(1000);
+            }
+
+            for (var i = 0; i < 50; i++)
+            {
+                var payload = new
+                {
+                    app = "VALVE - Reception Tool",
+                    level = i % 5 == 0 ? "Warning" : "Info",
+                    message = string.Format(messages[random.Next(messages.Length)], i),
+                    timestamp = DateTime.Now
+                };
+
+                var res = await http.PostAsJsonAsync(endpoint, payload);
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Sent #{i} -> {(int)res.StatusCode}");
 
                 await Task.Delay(1000);
             }

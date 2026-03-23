@@ -22,7 +22,7 @@
         <select id="appSelect" class="form-select"></select>
     </div>
     <div class="col-md-3">
-        <label for="dateSelect" class="form-label">Filter by date (UTC)</label>
+        <label for="dateSelect" class="form-label">Filter by date</label>
         <input id="dateSelect" type="date" class="form-control" />
     </div>
     <div class="col-md-2">
@@ -43,7 +43,7 @@
     <table class="table table-striped table-sm align-middle">
         <thead>
             <tr>
-                <th style="width: 180px;">Timestamp (UTC)</th>
+                <th style="width: 180px;">Timestamp</th>
                 <th style="width: 160px;">App</th>
                 <th style="width: 100px;">Level</th>
                 <th>Message</th>
@@ -158,7 +158,7 @@
                 <td>${escapeHtml(entry.level ?? '')}</td>
                 <td>${escapeHtml(entry.message)}</td>
                 <td>
-                    ${xemHref ? `<a target="_blank" class="btn btn-outline-primary btn-sm" href="${xemHref}">Xem</a>` : ''}
+                    ${xemHref ? `<a target="_blank" class="btn btn-outline-primary btn-sm" href="${xemHref}">Detail</a>` : ''}
                 </td>
             `;
             body.appendChild(tr);

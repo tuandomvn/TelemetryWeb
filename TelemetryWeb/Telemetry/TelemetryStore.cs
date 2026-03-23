@@ -68,7 +68,7 @@ public sealed class TelemetryStore : IDisposable
 
         var doc = new TelemetryDocument
         {
-            TimestampUtc = entry.Timestamp.UtcDateTime,
+            Timestamp = entry.Timestamp.UtcDateTime,
             App = entry.App,
             Level = entry.Level,
             Message = entry.Message
@@ -86,7 +86,7 @@ public sealed class TelemetryStore : IDisposable
                 {
                     var removeCount = count - _maxEntriesPerDb;
                     var oldest = col.FindAll()
-                        .OrderBy(x => x.TimestampUtc)
+                        .OrderBy(x => x.Timestamp)
                         .Take(removeCount)
                         .ToList();
 
@@ -184,7 +184,7 @@ public sealed class TelemetryStore : IDisposable
 
             return new TelemetryEntry(
                 Id: doc.Id.ToString(),
-                Timestamp: DateTime.SpecifyKind(doc.TimestampUtc, DateTimeKind.Utc),
+                Timestamp: DateTime.SpecifyKind(doc.Timestamp, DateTimeKind.Utc),
                 App: doc.App,
                 Level: doc.Level,
                 Message: doc.Message);
@@ -244,12 +244,12 @@ public sealed class TelemetryStore : IDisposable
             {
                 var s = startUtc.Value;
                 var e = endUtc.Value;
-                monthQuery = monthQuery.Where(x => x.TimestampUtc >= s && x.TimestampUtc < e);
+                monthQuery = monthQuery.Where(x => x.Timestamp >= s && x.Timestamp < e);
             }
 
             // newest first
             var list = monthQuery
-                .OrderByDescending(x => x.TimestampUtc)
+                .OrderByDescending(x => x.Timestamp)
                 .Take(takeExtra)
                 .ToList();
 
@@ -267,11 +267,11 @@ public sealed class TelemetryStore : IDisposable
         }
 
         return candidates
-            .OrderByDescending(x => x.TimestampUtc)
+            .OrderByDescending(x => x.Timestamp)
             .Take(limit)
             .Select(x => new TelemetryEntry(
                 Id: x.Id.ToString(),
-                Timestamp: DateTime.SpecifyKind(x.TimestampUtc, DateTimeKind.Utc),
+                Timestamp: DateTime.SpecifyKind(x.Timestamp, DateTimeKind.Utc),
                 App: x.App,
                 Level: x.Level,
                 Message: x.Message))
@@ -304,14 +304,14 @@ public sealed class TelemetryStore : IDisposable
             {
                 var todayQuery = col
                     .Query()
-                    .Where(x => x.TimestampUtc >= startUtc && x.TimestampUtc < endUtc);
+                    .Where(x => x.Timestamp >= startUtc && x.Timestamp < endUtc);
 
                 foreach (var doc in todayQuery.ToList())
                 {
                     var app = doc.App;
                     if (string.IsNullOrWhiteSpace(app)) continue;
 
-                    var tsUtc = DateTime.SpecifyKind(doc.TimestampUtc, DateTimeKind.Utc);
+                    var tsUtc = DateTime.SpecifyKind(doc.Timestamp, DateTimeKind.Utc);
                     var tsDto = new DateTimeOffset(tsUtc);
 
                     if (!dict.TryGetValue(app, out var value))
@@ -400,7 +400,7 @@ public sealed class TelemetryStore : IDisposable
     {
         var col = db.GetCollection<TelemetryDocument>(_collectionName);
         col.EnsureIndex(x => x.App);
-        col.EnsureIndex(x => x.TimestampUtc);
+        col.EnsureIndex(x => x.Timestamp);
         col.EnsureIndex(x => x.Level);
         return col;
     }
@@ -425,7 +425,7 @@ public sealed class TelemetryStore : IDisposable
         [BsonId]
         public ObjectId Id { get; set; } = default!;
 
-        public DateTime TimestampUtc { get; set; }
+        public DateTime Timestamp { get; set; }
 
         public string App { get; set; } = string.Empty;
 
