@@ -282,7 +282,7 @@ public sealed class TelemetryStore : IDisposable
     {
         if (idleMinutes <= 0) idleMinutes = 15;
 
-        var nowUtc = DateTimeOffset.UtcNow;
+        var nowUtc = DateTimeOffset.Now;
         var idleCutoff = nowUtc.AddMinutes(-idleMinutes);
 
         var dict = new Dictionary<string, (int countToday, DateTimeOffset? lastLogUtc)>(StringComparer.OrdinalIgnoreCase);
@@ -336,7 +336,7 @@ public sealed class TelemetryStore : IDisposable
             .Select(kvp =>
             {
                 var last = kvp.Value.lastLogUtc;
-                var isIdle = last.HasValue && last.Value <= idleCutoff;
+                var isIdle = !last.HasValue || last.Value < idleCutoff;
                 return new AppTodaySummary(
                     App: kvp.Key,
                     LogsToday: kvp.Value.countToday,

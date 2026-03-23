@@ -23,14 +23,14 @@ namespace ConsoleApp1
                 "Heartbeat signal received from Node-{0}"
             };
 
-            for (var i = 0; i < 30; i++)
+            for (var i = 0; i < 50; i++)
             {
                 var payload = new
                 {
-                    app = "H2H - MX",
+                    app = "H2H - MT",
                     level = i % 5 == 0 ? "Warning" : "Info",
                     message = string.Format(messages[random.Next(messages.Length)], i),
-                    timestamp = DateTimeOffset.UtcNow
+                    timestamp = DateTimeOffset.Now
                 };
 
                 var res = await http.PostAsJsonAsync(endpoint, payload);
