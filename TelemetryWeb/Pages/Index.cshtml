@@ -1,0 +1,195 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Telemetry Logs";
+}
+
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+    <h1 class="h3 mb-0">@ViewData["Title"]</h1>
+    <div class="text-muted" id="lastUpdated">Last updated: -</div>
+</div>
+
+<div class="row g-3 align-items-end mb-3">
+    <div class="col-md-3">
+        <label for="appSelect" class="form-label">Filter by app</label>
+        <select id="appSelect" class="form-select"></select>
+    </div>
+    <div class="col-md-3">
+        <label for="dateSelect" class="form-label">Filter by date (UTC)</label>
+        <input id="dateSelect" type="date" class="form-control" />
+    </div>
+    <div class="col-md-2">
+        <label for="levelSelect" class="form-label">Filter by level</label>
+        <select id="levelSelect" class="form-select"></select>
+    </div>
+    <div class="col-md-3">
+        <label for="searchBox" class="form-label">Search (text)</label>
+        <input id="searchBox" type="text" class="form-control" placeholder="Message / Level / App" />
+    </div>
+    <div class="col-md-1">
+        <button id="refreshBtn" class="btn btn-primary w-100">Refresh</button>
+    </div>
+</div>
+
+<div class="table-responsive" style="max-height: 70vh;">
+    <table class="table table-striped table-sm align-middle">
+        <thead>
+            <tr>
+                <th style="width: 180px;">Timestamp (UTC)</th>
+                <th style="width: 160px;">App</th>
+                <th style="width: 100px;">Level</th>
+                <th>Message</th>
+                <th style="width: 90px;">Action</th>
+            </tr>
+        </thead>
+        <tbody id="logBody">
+            <tr>
+                <td colspan="5" class="text-muted text-center">No telemetry yet.</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    function escapeHtml(text) {
+        if (text === null || text === undefined) return '';
+        return String(text)
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    }
+
+    async function fetchApps() {
+        const res = await fetch('/api/telemetry/apps');
+        if (!res.ok) throw new Error(`Failed to load apps: ${res.status}`);
+
+        const apps = await res.json();
+        const select = document.getElementById('appSelect');
+        select.innerHTML = '';
+
+        const allOpt = document.createElement('option');
+        allOpt.value = '';
+        allOpt.textContent = 'All apps';
+        select.appendChild(allOpt);
+
+        apps.forEach(app => {
+            const opt = document.createElement('option');
+            opt.value = app;
+            opt.textContent = app;
+            select.appendChild(opt);
+        });
+    }
+
+    async function fetchLevels() {
+        const res = await fetch('/api/telemetry/levels');
+        if (!res.ok) throw new Error(`Failed to load levels: ${res.status}`);
+
+        const levels = await res.json();
+        const select = document.getElementById('levelSelect');
+        select.innerHTML = '';
+
+        const allOpt = document.createElement('option');
+        allOpt.value = '';
+        allOpt.textContent = 'All levels';
+        select.appendChild(allOpt);
+
+        levels.forEach(level => {
+            const opt = document.createElement('option');
+            opt.value = level;
+            opt.textContent = level;
+            select.appendChild(opt);
+        });
+    }
+
+    async function fetchLogs() {
+        const select = document.getElementById('appSelect');
+        const app = select?.value ?? '';
+        const dateValue = document.getElementById('dateSelect')?.value ?? '';
+        const q = document.getElementById('searchBox')?.value ?? '';
+        const levelSelect = document.getElementById('levelSelect');
+        const level = levelSelect?.value ?? '';
+
+        let url = `/api/telemetry?app=${encodeURIComponent(app)}&limit=200`;
+        if (dateValue) {
+            url += `&date=${encodeURIComponent(dateValue)}`;
+        }
+        if (q.trim()) {
+            url += `&q=${encodeURIComponent(q.trim())}`;
+        }
+        if (level.trim()) {
+            url += `&level=${encodeURIComponent(level.trim())}`;
+        }
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`Failed to load telemetry: ${res.status}`);
+
+        const logs = await res.json();
+        const body = document.getElementById('logBody');
+        body.innerHTML = '';
+
+        if (!Array.isArray(logs) || logs.length === 0) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td colspan="5" class="text-muted text-center">No telemetry for selected filters.</td>`;
+            body.appendChild(tr);
+            return;
+        }
+
+        for (const entry of logs) {
+            const ts = entry?.timestamp ? new Date(entry.timestamp) : null;
+            const tsText = ts ? ts.toISOString().replace('T', ' ').replace('Z', ' UTC') : '';
+            const xemHref = entry?.id
+                ? `/Telemetry/Details?id=${encodeURIComponent(entry.id)}&timestamp=${encodeURIComponent(entry.timestamp ?? '')}`
+                : null;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${escapeHtml(tsText)}</td>
+                <td>${escapeHtml(entry.app)}</td>
+                <td>${escapeHtml(entry.level ?? '')}</td>
+                <td>${escapeHtml(entry.message)}</td>
+                <td>
+                    ${xemHref ? `<a target="_blank" class="btn btn-outline-primary btn-sm" href="${xemHref}">Xem</a>` : ''}
+                </td>
+            `;
+            body.appendChild(tr);
+        }
+
+        document.getElementById('lastUpdated').textContent =
+            `Last updated: ${new Date().toLocaleTimeString()}`;
+    }
+
+    (function init() {
+        const refreshBtn = document.getElementById('refreshBtn');
+
+        const load = async () => {
+            try {
+                await fetchApps();
+            } catch (e) {
+                console.error(e);
+            }
+
+            try {
+                await fetchLevels();
+            } catch (e) {
+                console.error(e);
+            }
+
+            try {
+                await fetchLogs();
+            } catch (e) {
+                console.error(e);
+            }
+
+            setInterval(() => fetchLogs().catch(console.error), 2000);
+        };
+
+        refreshBtn.addEventListener('click', () => fetchLogs().catch(console.error));
+        document.getElementById('appSelect').addEventListener('change', () => fetchLogs().catch(console.error));
+        document.getElementById('dateSelect').addEventListener('change', () => fetchLogs().catch(console.error));
+        document.getElementById('levelSelect').addEventListener('change', () => fetchLogs().catch(console.error));
+        document.getElementById('searchBox').addEventListener('input', () => fetchLogs().catch(console.error));
+        window.addEventListener('load', load);
+    })();
+</script>

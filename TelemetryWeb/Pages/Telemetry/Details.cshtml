@@ -1,0 +1,39 @@
+@page
+@model TelemetryWeb.Pages.Telemetry.DetailsModel
+@{
+    ViewData["Title"] = "Telemetry Detail";
+}
+
+<h1 class="h3 mb-3">@ViewData["Title"]</h1>
+
+@if (Model.Entry is null)
+{
+    <div class="alert alert-warning">Telemetry not found.</div>
+}
+else
+{
+    <div class="card">
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3">Timestamp (UTC)</dt>
+                <dd class="col-sm-9">@Model.Entry.Timestamp.ToString("u")</dd>
+
+                <dt class="col-sm-3">App</dt>
+                <dd class="col-sm-9">@Model.Entry.App</dd>
+
+                <dt class="col-sm-3">Level</dt>
+                <dd class="col-sm-9">@Model.Entry.Level</dd>
+
+                <dt class="col-sm-3">Message</dt>
+                <dd class="col-sm-9">
+                    <pre class="mb-0" style="white-space: pre-wrap;">@Model.Entry.Message</pre>
+                </dd>
+            </dl>
+
+            <div class="mt-3">
+                <a class="btn btn-outline-secondary btn-sm" href="/Index">Back</a>
+            </div>
+        </div>
+    </div>
+}
+

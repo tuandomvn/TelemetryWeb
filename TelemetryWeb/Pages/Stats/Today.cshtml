@@ -1,0 +1,62 @@
+@page "/Stats/Today"
+@model TelemetryWeb.Pages.Stats.TodayModel
+
+@{
+    ViewData["Title"] = "Today App Summary";
+}
+
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+    <h1 class="h3 mb-0">@ViewData["Title"]</h1>
+    <div class="text-muted">
+        Idle if no logs in the last <b>@Model.IdleMinutes</b> minutes
+    </div>
+</div>
+
+<div class="alert alert-info">
+    <div><b>Date (UTC):</b> @Model.TodayUtc</div>
+    <div><b>Idle apps:</b> @Model.IdleCount</div>
+</div>
+
+<div class="table-responsive" style="max-height: 70vh;">
+    <table class="table table-sm table-striped align-middle">
+        <thead>
+            <tr>
+                <th style="width: 200px;">App/Service</th>
+                <th style="width: 120px;">Logs Today</th>
+                <th style="width: 240px;">Last Log (UTC)</th>
+                <th style="width: 120px;">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.Items.Count == 0)
+            {
+                <tr>
+                    <td colspan="4" class="text-muted text-center">No telemetry data yet.</td>
+                </tr>
+            }
+            else
+            {
+                foreach (var item in Model.Items)
+                {
+                    var rowClass = item.IsIdle ? "table-warning" : string.Empty;
+                    <tr class="@rowClass">
+                        <td>@item.App</td>
+                        <td>@item.LogsToday</td>
+                        <td>@(item.LastLogUtc.HasValue ? item.LastLogUtc.Value.ToString("u") : "-")</td>
+                        <td>
+                            @if (item.IsIdle)
+                            {
+                                <span class="badge bg-warning text-dark">Idle</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">Active</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
