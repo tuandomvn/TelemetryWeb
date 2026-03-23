@@ -23,11 +23,11 @@ namespace ConsoleApp1
                 "Heartbeat signal received from Node-{0}"
             };
 
-            for (var i = 0; i < 300; i++)
+            for (var i = 0; i < 30; i++)
             {
                 var payload = new
                 {
-                    app = "ConsoleApp1",
+                    app = "H2H - MX",
                     level = i % 5 == 0 ? "Warning" : "Info",
                     message = string.Format(messages[random.Next(messages.Length)], i),
                     timestamp = DateTimeOffset.UtcNow

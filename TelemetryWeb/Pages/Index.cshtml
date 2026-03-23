@@ -4,9 +4,16 @@
     ViewData["Title"] = "Telemetry Logs";
 }
 
+
 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
     <h1 class="h3 mb-0">@ViewData["Title"]</h1>
-    <div class="text-muted" id="lastUpdated">Last updated: -</div>
+    <div class="d-flex align-items-center gap-3">
+        <div class="text-muted" id="lastUpdated">Last updated: -</div>
+        <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" id="autoRefreshToggle" checked>
+            <label class="form-check-label" for="autoRefreshToggle">Auto Refresh</label>
+        </div>
+    </div>
 </div>
 
 <div class="row g-3 align-items-end mb-3">
@@ -24,11 +31,12 @@
     </div>
     <div class="col-md-3">
         <label for="searchBox" class="form-label">Search (text)</label>
-        <input id="searchBox" type="text" class="form-control" placeholder="Message / Level / App" />
+        <div class="input-group">
+            <input id="searchBox" type="text" class="form-control" placeholder="Message / Level / App" />
+            <button id="searchBtn" class="btn btn-outline-secondary" type="button">Search</button>
+        </div>
     </div>
-    <div class="col-md-1">
-        <button id="refreshBtn" class="btn btn-primary w-100">Refresh</button>
-    </div>
+
 </div>
 
 <div class="table-responsive" style="max-height: 70vh;">
@@ -161,7 +169,8 @@
     }
 
     (function init() {
-        const refreshBtn = document.getElementById('refreshBtn');
+        let autoRefreshInterval = null;
+        const autoRefreshToggle = document.getElementById('autoRefreshToggle');
 
         const load = async () => {
             try {
@@ -182,14 +191,24 @@
                 console.error(e);
             }
 
-            setInterval(() => fetchLogs().catch(console.error), 2000);
+            if (autoRefreshToggle.checked) {
+                autoRefreshInterval = setInterval(() => fetchLogs().catch(console.error), 5000);
+            }
         };
 
-        refreshBtn.addEventListener('click', () => fetchLogs().catch(console.error));
-        document.getElementById('appSelect').addEventListener('change', () => fetchLogs().catch(console.error));
-        document.getElementById('dateSelect').addEventListener('change', () => fetchLogs().catch(console.error));
-        document.getElementById('levelSelect').addEventListener('change', () => fetchLogs().catch(console.error));
-        document.getElementById('searchBox').addEventListener('input', () => fetchLogs().catch(console.error));
+        autoRefreshToggle.addEventListener('change', () => {
+            if (autoRefreshToggle.checked) {
+                fetchLogs().catch(console.error);
+                autoRefreshInterval = setInterval(() => fetchLogs().catch(console.error), 5000);
+            } else {
+                if (autoRefreshInterval) {
+                    clearInterval(autoRefreshInterval);
+                    autoRefreshInterval = null;
+                }
+            }
+        });
+
+        document.getElementById('searchBtn').addEventListener('click', () => fetchLogs().catch(console.error));
         window.addEventListener('load', load);
     })();
 </script>
