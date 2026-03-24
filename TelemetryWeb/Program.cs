@@ -40,6 +40,20 @@ namespace TelemetryWeb
 
                 return new TelemetryStore(resolvedDataFolder, dbFileNameTemplate, maxEntries, maxMonthsToScan);
             });
+            builder.Services.AddSingleton<AppCatalogStore>(_ =>
+            {
+                var telemetryDataFolder = builder.Configuration["Telemetry:DataFolder"];
+                var appCatalogDbFileName = builder.Configuration["Telemetry:AppCatalogDbFileName"];
+
+                var dataFolder = string.IsNullOrWhiteSpace(telemetryDataFolder) ? "App_Data" : telemetryDataFolder!.Trim();
+                var dbFileName = string.IsNullOrWhiteSpace(appCatalogDbFileName) ? "apps-catalog.litedb" : appCatalogDbFileName!.Trim();
+                var resolvedDataFolder = Path.IsPathRooted(dataFolder)
+                    ? dataFolder
+                    : Path.Combine(builder.Environment.ContentRootPath, dataFolder);
+                var dbFilePath = Path.Combine(resolvedDataFolder, dbFileName);
+
+                return new AppCatalogStore(dbFilePath);
+            });
 
             var app = builder.Build();
 
@@ -57,7 +71,7 @@ namespace TelemetryWeb
 
             app.MapStaticAssets();
 
-            app.MapPost("/api/telemetry", (TelemetryIngestRequest req, TelemetryStore store) =>
+            app.MapPost("/api/telemetry", (TelemetryIngestRequest req, TelemetryStore store, AppCatalogStore appCatalogStore) =>
             {
                 if (req is null)
                 {
@@ -84,12 +98,13 @@ namespace TelemetryWeb
                     Message: message);
 
                 store.Add(entry);
+                appCatalogStore.UpsertApp(appId, entry.Timestamp);
                 return Results.Accepted();
             });
 
-            app.MapGet("/api/telemetry/apps", (TelemetryStore store) =>
+            app.MapGet("/api/telemetry/apps", (AppCatalogStore appCatalogStore) =>
             {
-                var apps = store.GetAppIds();
+                var apps = appCatalogStore.GetAppIds();
                 return Results.Ok(apps);
             });
 

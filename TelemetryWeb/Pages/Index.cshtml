@@ -39,8 +39,14 @@
 
 </div>
 
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css" />
+
+<div class="d-flex justify-content-end mb-2">
+    <span id="pageIndexLabel" class="text-muted small">Page 0 / 0</span>
+</div>
+
 <div class="table-responsive" style="max-height: 70vh;">
-    <table class="table table-striped table-sm align-middle">
+    <table id="logTable" class="table table-striped table-sm align-middle">
         <thead>
             <tr>
                 <th style="width: 180px;">Timestamp</th>
@@ -50,14 +56,12 @@
                 <th style="width: 90px;">Action</th>
             </tr>
         </thead>
-        <tbody id="logBody">
-            <tr>
-                <td colspan="5" class="text-muted text-center">No telemetry yet.</td>
-            </tr>
-        </tbody>
+        <tbody></tbody>
     </table>
 </div>
 
+@section Scripts {
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
 <script>
     function escapeHtml(text) {
         if (text === null || text === undefined) return '';
@@ -67,6 +71,41 @@
             .replaceAll('>', '&gt;')
             .replaceAll('"', '&quot;')
             .replaceAll("'", '&#039;');
+    }
+
+    let logDataTable = null;
+
+    function updatePageIndexLabel() {
+        if (!logDataTable) return;
+        const info = logDataTable.page.info();
+        const currentPage = info.pages === 0 ? 0 : (info.page + 1);
+        document.getElementById('pageIndexLabel').textContent = `Page ${currentPage} / ${info.pages}`;
+    }
+
+    function ensureDataTable() {
+        if (logDataTable) return logDataTable;
+
+        logDataTable = $('#logTable').DataTable({
+            searching: false,
+            lengthChange: true,
+            pageLength: 10,
+            order: [[0, 'desc']],
+            pagingType: 'full_numbers',
+            language: {
+                emptyTable: 'No telemetry for selected filters.'
+            },
+            columns: [
+                { data: 'timestamp' },
+                { data: 'app' },
+                { data: 'level' },
+                { data: 'message' },
+                { data: 'action', orderable: false, searchable: false }
+            ]
+        });
+
+        logDataTable.on('draw', updatePageIndexLabel);
+        updatePageIndexLabel();
+        return logDataTable;
     }
 
     async function fetchApps() {
@@ -134,35 +173,33 @@
         if (!res.ok) throw new Error(`Failed to load telemetry: ${res.status}`);
 
         const logs = await res.json();
-        const body = document.getElementById('logBody');
-        body.innerHTML = '';
+        const rows = [];
 
-        if (!Array.isArray(logs) || logs.length === 0) {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td colspan="5" class="text-muted text-center">No telemetry for selected filters.</td>`;
-            body.appendChild(tr);
-            return;
-        }
-
-        for (const entry of logs) {
+        for (const entry of (Array.isArray(logs) ? logs : [])) {
             const ts = entry?.timestamp ? new Date(entry.timestamp) : null;
             const tsText = ts ? ts.toISOString().replace('T', ' ').replace('Z', '') : '';
             const xemHref = entry?.id
                 ? `/Telemetry/Details?id=${encodeURIComponent(entry.id)}&timestamp=${encodeURIComponent(entry.timestamp ?? '')}`
                 : null;
 
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${escapeHtml(tsText)}</td>
-                <td>${escapeHtml(entry.app)}</td>
-                <td>${escapeHtml(entry.level ?? '')}</td>
-                <td>${escapeHtml(entry.message)}</td>
-                <td>
-                    ${xemHref ? `<a target="_blank" class="btn btn-outline-primary btn-sm" href="${xemHref}">Detail</a>` : ''}
-                </td>
-            `;
-            body.appendChild(tr);
+            rows.push({
+                timestamp: escapeHtml(tsText),
+                app: escapeHtml(entry.app),
+                level: escapeHtml(entry.level ?? ''),
+                message: escapeHtml(entry.message),
+                action: xemHref ? `<a target="_blank" class="btn btn-outline-primary btn-sm" href="${xemHref}">Detail</a>` : ''
+            });
         }
+
+        const table = ensureDataTable();
+        const previousPage = table.page();
+        table.clear();
+        table.rows.add(rows);
+        table.draw(false);
+        if (table.page.info().pages > previousPage) {
+            table.page(previousPage).draw(false);
+        }
+        updatePageIndexLabel();
 
         document.getElementById('lastUpdated').textContent =
             `Last updated: ${new Date().toLocaleTimeString()}`;
@@ -212,3 +249,4 @@
         window.addEventListener('load', load);
     })();
 </script>
+}
