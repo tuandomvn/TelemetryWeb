@@ -90,6 +90,18 @@
         if (logDataTable) return logDataTable;
 
         logDataTable = $('#logTable').DataTable({
+            serverSide: true,
+            ajax: {
+                url: '/api/telemetry',
+                type: 'GET',
+                dataSrc: function(json) { return json.data; },
+                data: function (d) {
+                    d.app = $('#appSelect').val();
+                    d.date = $('#dateSelect').val();
+                    d.q = $('#searchBox').val();
+                    d.level = $('#levelSelect').val();
+                }
+            },
             searching: false,
             lengthChange: false,
             pageLength: 200,
@@ -99,11 +111,30 @@
                 emptyTable: 'No telemetry for selected filters.'
             },
             columns: [
-                { data: 'timestamp' },
-                { data: 'app' },
-                { data: 'level' },
-                { data: 'message' },
-                { data: 'action', orderable: false, searchable: false }
+                {
+                    data: 'timestamp',
+                    render: function(data, type, row) {
+                        if (!data) return '';
+                        // data is already formatted as yyyy-MM-dd HH:mm:ss
+                        return escapeHtml(data);
+                    }
+                },
+                {
+                    data: 'app',
+                    render: function(data) { return escapeHtml(data); }
+                },
+                {
+                    data: 'level',
+                    render: function(data) { return escapeHtml(data); }
+                },
+                {
+                    data: 'message',
+                    render: function(data) { return escapeHtml(data); }
+                },
+                {
+                    data: 'action', orderable: false, searchable: false,
+                    render: function(data) { return data || ''; }
+                }
             ]
         });
 
@@ -154,60 +185,6 @@
         });
     }
 
-    async function fetchLogs() {
-        const select = document.getElementById('appSelect');
-        const app = select?.value ?? '';
-        const dateValue = document.getElementById('dateSelect')?.value ?? '';
-        const q = document.getElementById('searchBox')?.value ?? '';
-        const levelSelect = document.getElementById('levelSelect');
-        const level = levelSelect?.value ?? '';
-
-        let url = `/api/telemetry?app=${encodeURIComponent(app)}&limit=200`;
-        if (dateValue) {
-            url += `&date=${encodeURIComponent(dateValue)}`;
-        }
-        if (q.trim()) {
-            url += `&q=${encodeURIComponent(q.trim())}`;
-        }
-        if (level.trim()) {
-            url += `&level=${encodeURIComponent(level.trim())}`;
-        }
-
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`Failed to load telemetry: ${res.status}`);
-
-        const logs = await res.json();
-        const rows = [];
-
-        for (const entry of (Array.isArray(logs) ? logs : [])) {
-            const ts = entry?.timestamp ? new Date(entry.timestamp) : null;
-            const tsText = ts ? ts.toISOString().replace('T', ' ').replace('Z', '') : '';
-            const xemHref = entry?.id
-                ? `/Telemetry/Details?id=${encodeURIComponent(entry.id)}&timestamp=${encodeURIComponent(entry.timestamp ?? '')}`
-                : null;
-
-            rows.push({
-                timestamp: escapeHtml(tsText),
-                app: escapeHtml(entry.app),
-                level: escapeHtml(entry.level ?? ''),
-                message: escapeHtml(entry.message),
-                action: xemHref ? `<a target="_blank" class="btn btn-outline-primary btn-sm" href="${xemHref}">Detail</a>` : ''
-            });
-        }
-
-        const table = ensureDataTable();
-        const previousPage = table.page();
-        table.clear();
-        table.rows.add(rows);
-        table.draw(false);
-        if (table.page.info().pages > previousPage) {
-            table.page(previousPage).draw(false);
-        }
-        updatePageIndexLabel();
-
-        document.getElementById('lastUpdated').textContent =
-            `Last updated: ${new Date().toLocaleTimeString()}`;
-    }
 
     (function init() {
         let autoRefreshInterval = null;
@@ -226,21 +203,20 @@
                 console.error(e);
             }
 
-            try {
-                await fetchLogs();
-            } catch (e) {
-                console.error(e);
-            }
-
+            ensureDataTable();
             if (autoRefreshToggle.checked) {
-                autoRefreshInterval = setInterval(() => fetchLogs().catch(console.error), 5000);
+                autoRefreshInterval = setInterval(() => {
+                    if (logDataTable) logDataTable.ajax.reload(null, false);
+                }, 5000);
             }
         };
 
         autoRefreshToggle.addEventListener('change', () => {
             if (autoRefreshToggle.checked) {
-                fetchLogs().catch(console.error);
-                autoRefreshInterval = setInterval(() => fetchLogs().catch(console.error), 5000);
+                if (logDataTable) logDataTable.ajax.reload(null, false);
+                autoRefreshInterval = setInterval(() => {
+                    if (logDataTable) logDataTable.ajax.reload(null, false);
+                }, 5000);
             } else {
                 if (autoRefreshInterval) {
                     clearInterval(autoRefreshInterval);
@@ -249,7 +225,9 @@
             }
         });
 
-        document.getElementById('searchBtn').addEventListener('click', () => fetchLogs().catch(console.error));
+        document.getElementById('searchBtn').addEventListener('click', () => {
+            if (logDataTable) logDataTable.ajax.reload(null, false);
+        });
         window.addEventListener('load', load);
     })();
 </script>

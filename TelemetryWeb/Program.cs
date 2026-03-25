@@ -115,9 +115,18 @@ namespace TelemetryWeb
                 return Results.Ok(levels);
             });
 
-            app.MapGet("/api/telemetry", (string? app, int? limit, string? date, string? q, string? level, TelemetryStore store) =>
+            app.MapGet("/api/telemetry", (HttpContext context, TelemetryStore store) =>
             {
-                var take = limit ?? 200;
+                var query = context.Request.Query;
+                string? app = query["app"].FirstOrDefault();
+                string? date = query["date"].FirstOrDefault();
+                string? q = query["q"].FirstOrDefault();
+                string? level = query["level"].FirstOrDefault();
+
+                int start = 0, length = 200, draw = 0;
+                int.TryParse(query["start"], out start);
+                int.TryParse(query["length"], out length);
+                int.TryParse(query["draw"], out draw);
 
                 DateOnly? dayUtc = null;
                 if (!string.IsNullOrWhiteSpace(date))
@@ -126,12 +135,28 @@ namespace TelemetryWeb
                     {
                         return Results.BadRequest("Invalid `date`. Use format YYYY-MM-DD.");
                     }
-
                     dayUtc = parsedDay;
                 }
 
-                var latest = store.GetLatest(app, take, dayUtc, q, level);
-                return Results.Ok(latest);
+                // Lấy tất cả bản ghi phù hợp filter (chỉ lấy id, timestamp, app, level, message)
+                var all = store.GetLatest(app, int.MaxValue, dayUtc, q, level);
+                var recordsTotal = all.Count;
+                var data = all.Skip(start).Take(length).ToList();
+
+                var result = new {
+                    draw = draw,
+                    recordsTotal = recordsTotal,
+                    recordsFiltered = recordsTotal,
+                    data = data.Select(x => new {
+                        id = x.Id,
+                        timestamp = x.Timestamp.ToString("yyyy-MM-dd HH:mm:ss"),
+                        app = x.App,
+                        level = x.Level,
+                        message = x.Message,
+                        action = x.Id != null ? $"<a target=\"_blank\" class=\"btn btn-outline-primary btn-sm\" href=\"/Telemetry/Details?id={System.Net.WebUtility.UrlEncode(x.Id)}&timestamp={System.Net.WebUtility.UrlEncode(x.Timestamp.ToString("o"))}\">Detail</a>" : ""
+                    })
+                };
+                return Results.Json(result);
             });
 
             app.MapRazorPages()
