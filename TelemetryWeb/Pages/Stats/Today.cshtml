@@ -5,10 +5,17 @@
     ViewData["Title"] = "Today App Summary";
 }
 
+
 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
     <h1 class="h3 mb-0">@ViewData["Title"]</h1>
-    <div class="text-muted">
-        Idle if no logs in the last <b>@Model.IdleMinutes</b> minutes
+    <div class="d-flex align-items-center gap-3">
+        <div class="text-muted">
+            Idle if no logs in the last <b>@Model.IdleMinutes</b> minutes
+        </div>
+        <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" id="autoRefreshToggle" checked>
+            <label class="form-check-label" for="autoRefreshToggle">Auto Refresh</label>
+        </div>
     </div>
 </div>
 
@@ -59,4 +66,29 @@
         </tbody>
     </table>
 </div>
+
+@section Scripts {
+<script>
+    (function() {
+        let autoRefreshInterval = null;
+        const autoRefreshToggle = document.getElementById('autoRefreshToggle');
+
+        function setAutoRefresh() {
+            if (autoRefreshToggle.checked) {
+                autoRefreshInterval = setInterval(() => {
+                    window.location.reload();
+                }, 60*1000);
+            } else {
+                if (autoRefreshInterval) {
+                    clearInterval(autoRefreshInterval);
+                    autoRefreshInterval = null;
+                }
+            }
+        }
+
+        autoRefreshToggle.addEventListener('change', setAutoRefresh);
+        setAutoRefresh();
+    })();
+</script>
+}
 
