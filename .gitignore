@@ -261,3 +261,7 @@ Acme.OnlineCourses/Logs/*
 # Use abp install-libs to restore.
 **/wwwroot/libs/*
 /Acme.OnlineCourses/wwwroot/uploads
+
+# LiteDB
+*.litedb
+TelemetryWeb/App_Data/
