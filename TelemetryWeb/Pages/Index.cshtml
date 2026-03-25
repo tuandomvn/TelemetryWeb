@@ -84,6 +84,8 @@
         const info = logDataTable.page.info();
         const currentPage = info.pages === 0 ? 0 : (info.page + 1);
         document.getElementById('pageIndexLabel').textContent = `Page ${currentPage} / ${info.pages}`;
+
+        document.getElementById('lastUpdated').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
     }
 
     function ensureDataTable() {
@@ -207,7 +209,7 @@
             if (autoRefreshToggle.checked) {
                 autoRefreshInterval = setInterval(() => {
                     if (logDataTable) logDataTable.ajax.reload(null, false);
-                }, 5000);
+                    }, 60*1000);
             }
         };
 
@@ -216,7 +218,7 @@
                 if (logDataTable) logDataTable.ajax.reload(null, false);
                 autoRefreshInterval = setInterval(() => {
                     if (logDataTable) logDataTable.ajax.reload(null, false);
-                }, 5000);
+                }, 60*1000);
             } else {
                 if (autoRefreshInterval) {
                     clearInterval(autoRefreshInterval);
