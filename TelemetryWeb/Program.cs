@@ -15,11 +15,11 @@ namespace TelemetryWeb
                 var telemetryDataFolder = builder.Configuration["Telemetry:DataFolder"];
                 var telemetryDbFileNameTemplate = builder.Configuration["Telemetry:DbFileNameTemplate"];
                 var maxEntriesValue = builder.Configuration["Telemetry:MaxEntries"];
-                var maxMonthsToScanValue = builder.Configuration["Telemetry:MaxMonthsToScan"];
+                var maxDaysToScanValue = builder.Configuration["Telemetry:MaxDaysToScan"];
 
                 var dataFolder = string.IsNullOrWhiteSpace(telemetryDataFolder) ? "App_Data" : telemetryDataFolder!.Trim();
                 var dbFileNameTemplate = string.IsNullOrWhiteSpace(telemetryDbFileNameTemplate)
-                    ? "telemetry-{yyyyMM}.litedb"
+                    ? "telemetry-yyyyMMdd.litedb"
                     : telemetryDbFileNameTemplate!.Trim();
 
                 var maxEntries = 50_000;
@@ -28,17 +28,17 @@ namespace TelemetryWeb
                     maxEntries = parsed;
                 }
 
-                var maxMonthsToScan = 24;
-                if (!string.IsNullOrWhiteSpace(maxMonthsToScanValue) && int.TryParse(maxMonthsToScanValue, out var parsedMonths))
+                var maxDaysToScan = 2;
+                if (!string.IsNullOrWhiteSpace(maxDaysToScanValue) && int.TryParse(maxDaysToScanValue, out var parsedMonths))
                 {
-                    maxMonthsToScan = parsedMonths;
+                    maxDaysToScan = parsedMonths;
                 }
 
                 var resolvedDataFolder = Path.IsPathRooted(dataFolder)
                     ? dataFolder
                     : Path.Combine(builder.Environment.ContentRootPath, dataFolder);
 
-                return new TelemetryStore(resolvedDataFolder, dbFileNameTemplate, maxEntries, maxMonthsToScan);
+                return new TelemetryStore(resolvedDataFolder, dbFileNameTemplate, maxEntries, maxDaysToScan);
             });
             builder.Services.AddSingleton<AppCatalogStore>(_ =>
             {
@@ -55,6 +55,7 @@ namespace TelemetryWeb
                 return new AppCatalogStore(dbFilePath);
             });
 
+            builder.WebHost.UseUrls("http://0.0.0.0:5000");
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
@@ -68,7 +69,7 @@ namespace TelemetryWeb
 
             app.UseRouting();
             app.UseAuthorization();
-
+         
             app.MapStaticAssets();
 
             app.MapPost("/api/telemetry", (TelemetryIngestRequest req, TelemetryStore store, AppCatalogStore appCatalogStore) =>

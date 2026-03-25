@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Globalization;
 using LiteDB;
+using Microsoft.AspNetCore.Components.Forms;
 
 namespace TelemetryWeb.Telemetry;
 
@@ -11,17 +12,18 @@ public sealed class TelemetryStore : IDisposable
     private readonly string _dataFolder;
     private readonly string _dbFileNameTemplate;
     private readonly int _maxEntriesPerDb;
-    private readonly int _maxMonthsToScan;
+    private readonly int _maxDaysToScan;
 
     private readonly string _collectionName = "telemetry";
     private readonly string? _templatePrefix;
     private readonly string? _templateSuffix;
+    private readonly string _dbFileSuffix = "yyyyMMdd";
 
     public TelemetryStore(
         string dataFolder,
         string dbFileNameTemplate,
         int maxEntriesPerDb = 50_000,
-        int maxMonthsToScan = 24)
+        int maxDaysToScan = 2)
     {
         if (string.IsNullOrWhiteSpace(dataFolder))
         {
@@ -36,19 +38,18 @@ public sealed class TelemetryStore : IDisposable
         _dataFolder = dataFolder.Trim();
         _dbFileNameTemplate = dbFileNameTemplate.Trim();
         _maxEntriesPerDb = maxEntriesPerDb;
-        _maxMonthsToScan = maxMonthsToScan;
+        _maxDaysToScan = maxDaysToScan;
 
         if (!Directory.Exists(_dataFolder))
         {
             Directory.CreateDirectory(_dataFolder);
         }
 
-        const string placeholder = "{yyyyMM}";
-        var idx = _dbFileNameTemplate.IndexOf(placeholder, StringComparison.OrdinalIgnoreCase);
+        var idx = _dbFileNameTemplate.IndexOf(_dbFileSuffix, StringComparison.OrdinalIgnoreCase);
         if (idx >= 0)
         {
             _templatePrefix = _dbFileNameTemplate.Substring(0, idx);
-            _templateSuffix = _dbFileNameTemplate.Substring(idx + placeholder.Length);
+            _templateSuffix = _dbFileNameTemplate.Substring(idx + _dbFileSuffix.Length);
         }
         else
         {
@@ -61,14 +62,14 @@ public sealed class TelemetryStore : IDisposable
     {
         if (entry is null) return;
 
-        var monthKey = ToMonthKey(entry.Timestamp);
+        var monthKey = ToDateKey(entry.Timestamp);
 
         var db = GetOrCreateDb(monthKey);
         var col = GetCollection(db);
 
         var doc = new TelemetryDocument
         {
-            Timestamp = entry.Timestamp.UtcDateTime,
+            Timestamp = entry.Timestamp,
             App = entry.App,
             Level = entry.Level,
             Message = entry.Message
@@ -79,23 +80,23 @@ public sealed class TelemetryStore : IDisposable
             var id = col.Insert(doc);
             doc.Id = id;
 
-            if (_maxEntriesPerDb > 0)
-            {
-                var count = col.Count();
-                if (count > _maxEntriesPerDb)
-                {
-                    var removeCount = count - _maxEntriesPerDb;
-                    var oldest = col.FindAll()
-                        .OrderBy(x => x.Timestamp)
-                        .Take(removeCount)
-                        .ToList();
+            //if (_maxEntriesPerDb > 0)
+            //{
+            //    var count = col.Count();
+            //    if (count > _maxEntriesPerDb)
+            //    {
+            //        var removeCount = count - _maxEntriesPerDb;
+            //        var oldest = col.FindAll()
+            //            .OrderBy(x => x.Timestamp)
+            //            .Take(removeCount)
+            //            .ToList();
 
-                    foreach (var item in oldest)
-                    {
-                        col.Delete(item.Id);
-                    }
-                }
-            }
+            //        foreach (var item in oldest)
+            //        {
+            //            col.Delete(item.Id);
+            //        }
+            //    }
+            //}
         }
     }
 
@@ -103,7 +104,7 @@ public sealed class TelemetryStore : IDisposable
     {
         var apps = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var monthKey in GetMonthKeysToScan((DateOnly?)null))
+        foreach (var monthKey in GetDayKeysToScan((DateOnly?)null))
         {
             var path = GetDbFilePath(monthKey);
             if (!File.Exists(path)) continue;
@@ -132,7 +133,7 @@ public sealed class TelemetryStore : IDisposable
     {
         var levels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var monthKey in GetMonthKeysToScan((DateOnly?)null))
+        foreach (var monthKey in GetDayKeysToScan((DateOnly?)null))
         {
             var path = GetDbFilePath(monthKey);
             if (!File.Exists(path)) continue;
@@ -157,7 +158,7 @@ public sealed class TelemetryStore : IDisposable
             .ToList();
     }
 
-    public TelemetryEntry? GetById(string id, DateTimeOffset? timestampUtc)
+    public TelemetryEntry? GetById(string id, DateTime? timestampUtc)
     {
         if (string.IsNullOrWhiteSpace(id)) return null;
 
@@ -171,13 +172,13 @@ public sealed class TelemetryStore : IDisposable
             return null;
         }
 
-        var candidateMonthKeys = GetMonthKeysToScan(timestampUtc);
-        foreach (var monthKey in candidateMonthKeys)
+        var candidateDayKeys = GetDayKeysToScan(timestampUtc);
+        foreach (var dayKey in candidateDayKeys)
         {
-            var path = GetDbFilePath(monthKey);
+            var path = GetDbFilePath(dayKey);
             if (!File.Exists(path)) continue;
 
-            var db = GetOrCreateDb(monthKey);
+            var db = GetOrCreateDb(dayKey);
             var col = GetCollection(db);
             var doc = col.FindById(objectId);
             if (doc is null) continue;
@@ -202,8 +203,6 @@ public sealed class TelemetryStore : IDisposable
     {
         if (limit <= 0) limit = 200;
 
-        var takeExtra = Math.Max(limit * 3, 300);
-
         DateTime? startUtc = null;
         DateTime? endUtc = null;
         if (dayUtc.HasValue)
@@ -219,12 +218,12 @@ public sealed class TelemetryStore : IDisposable
         var appFilter = string.IsNullOrWhiteSpace(app) ? null : app.Trim();
 
         var candidates = new List<TelemetryDocument>();
-        foreach (var monthKey in GetMonthKeysToScan(dayUtc))
+        foreach (var dayKey in GetDayKeysToScan(dayUtc))
         {
-            var path = GetDbFilePath(monthKey);
+            var path = GetDbFilePath(dayKey);
             if (!File.Exists(path)) continue;
 
-            var db = GetOrCreateDb(monthKey);
+            var db = GetOrCreateDb(dayKey);
             var col = GetCollection(db);
 
             IEnumerable<TelemetryDocument> monthQuery = col.FindAll();
@@ -250,20 +249,10 @@ public sealed class TelemetryStore : IDisposable
             // newest first
             var list = monthQuery
                 .OrderByDescending(x => x.Timestamp)
-                .Take(takeExtra)
+                .Take(limit)
                 .ToList();
 
             candidates.AddRange(list);
-        }
-
-        if (q is not null)
-        {
-            candidates = candidates
-                .Where(x =>
-                    (x.Message?.IndexOf(q, StringComparison.OrdinalIgnoreCase) ?? -1) >= 0 ||
-                    (x.Level?.IndexOf(q, StringComparison.OrdinalIgnoreCase) ?? -1) >= 0 ||
-                    (x.App?.IndexOf(q, StringComparison.OrdinalIgnoreCase) ?? -1) >= 0)
-                .ToList();
         }
 
         return candidates
@@ -274,8 +263,15 @@ public sealed class TelemetryStore : IDisposable
                 Timestamp: DateTime.SpecifyKind(x.Timestamp, DateTimeKind.Utc),
                 App: x.App,
                 Level: x.Level,
-                Message: x.Message))
+                Message: TrimMessage(x.Message)))
             .ToList();
+    }
+
+    public string TrimMessage(string message, int maxLength = 200)
+    {
+        if(string.IsNullOrEmpty(message)) return string.Empty;
+        return message.Length > maxLength
+            ? message.Substring(0, maxLength) + "..." : message;
     }
 
     public IReadOnlyList<AppTodaySummary> GetTodayAppSummaries(DateOnly todayUtc, int idleMinutes)
@@ -292,7 +288,7 @@ public sealed class TelemetryStore : IDisposable
         var startUtc = DateTime.SpecifyKind(todayUtc.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
         var endUtc = DateTime.SpecifyKind(todayUtc.AddDays(1).ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
 
-        foreach (var monthKey in GetMonthKeysToScan(todayUtc))
+        foreach (var monthKey in GetDayKeysToScan(todayUtc))
         {
             var path = GetDbFilePath(monthKey);
             if (!File.Exists(path)) continue;
@@ -349,51 +345,51 @@ public sealed class TelemetryStore : IDisposable
             .ToList();
     }
 
-    private IEnumerable<string> GetMonthKeysToScan(DateOnly? dayUtc)
+    private IEnumerable<string> GetDayKeysToScan(DateOnly? dayUtc)
     {
         if (dayUtc.HasValue)
         {
-            var monthKey = dayUtc.Value.ToString("yyyyMM", CultureInfo.InvariantCulture);
+            var monthKey = dayUtc.Value.ToString(_dbFileSuffix, CultureInfo.InvariantCulture);
             return new[] { monthKey };
         }
 
         var nowUtc = DateTime.Now;
-        var result = new List<string>(_maxMonthsToScan);
-        for (var i = 0; i < _maxMonthsToScan; i++)
+        var result = new List<string>(_maxDaysToScan);
+        for (var i = 0; i < _maxDaysToScan; i++)
         {
-            var dt = nowUtc.AddMonths(-i);
-            result.Add(dt.ToString("yyyyMM", CultureInfo.InvariantCulture));
+            var dt = nowUtc.AddDays(-i);
+            result.Add(dt.ToString(_dbFileSuffix, CultureInfo.InvariantCulture));
         }
         return result;
     }
 
-    private IEnumerable<string> GetMonthKeysToScan(DateTimeOffset? timestampUtc)
+    private IEnumerable<string> GetDayKeysToScan(DateTime? timestampUtc)
     {
         if (timestampUtc.HasValue)
         {
-            return new[] { ToMonthKey(timestampUtc.Value) };
+            return new[] { ToDateKey(timestampUtc.Value) };
         }
 
         // fallback: scan recent months
-        return GetMonthKeysToScan((DateOnly?)null);
+        return GetDayKeysToScan((DateOnly?)null);
     }
 
-    private static string ToMonthKey(DateTimeOffset timestamp)
-        => timestamp.UtcDateTime.ToString("yyyyMM", CultureInfo.InvariantCulture);
+    private string ToDateKey(DateTime timestamp)
+        => timestamp.ToString(_dbFileSuffix, CultureInfo.InvariantCulture);
 
-    private string GetDbFilePath(string monthKey)
+    private string GetDbFilePath(string dayKey)
     {
-        var fileName = _dbFileNameTemplate.Contains("{yyyyMM}", StringComparison.OrdinalIgnoreCase)
-            ? _dbFileNameTemplate.Replace("{yyyyMM}", monthKey, StringComparison.OrdinalIgnoreCase)
+        var fileName = _dbFileNameTemplate.Contains(_dbFileSuffix, StringComparison.OrdinalIgnoreCase)
+            ? _dbFileNameTemplate.Replace(_dbFileSuffix, dayKey, StringComparison.OrdinalIgnoreCase)
             : _dbFileNameTemplate;
 
         return Path.Combine(_dataFolder, fileName);
     }
 
-    private LiteDatabase GetOrCreateDb(string monthKey)
+    private LiteDatabase GetOrCreateDb(string dayKey)
     {
-        var path = GetDbFilePath(monthKey);
-        return _dbCache.GetOrAdd(monthKey, _ => new LiteDatabase(path));
+        var path = GetDbFilePath(dayKey);
+        return _dbCache.GetOrAdd(dayKey, _ => new LiteDatabase(path));
     }
 
     private ILiteCollection<TelemetryDocument> GetCollection(LiteDatabase db)

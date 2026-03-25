@@ -7,7 +7,7 @@ namespace ConsoleApp1
     {
         static async Task Main(string[] args)
         {
-            var baseUrl = args.Length > 0 ? args[0] : "http://localhost:5063";
+            var baseUrl = args.Length > 0 ? args[0] : "http://localhost:5000";
             var endpoint = $"{baseUrl}/api/telemetry";
 
             using var http = new HttpClient();
@@ -23,7 +23,7 @@ namespace ConsoleApp1
                 "Heartbeat signal received from Node-{0}"
             };
 
-            for (var i = 0; i < 50; i++)
+            for (var i = 0; i < 5000; i++)
             {
                 var payload = new
                 {
@@ -39,7 +39,7 @@ namespace ConsoleApp1
                // await Task.Delay(1000);
             }
 
-            for (var i = 0; i < 50; i++)
+            for (var i = 0; i < 1000; i++)
             {
                 var payload = new
                 {
@@ -55,21 +55,21 @@ namespace ConsoleApp1
                 //await Task.Delay(1000);
             }
 
-            //for (var i = 0; i < 50; i++)
-            //{
-            //    var payload = new
-            //    {
-            //        app = "VALVE - Reception Tool",
-            //        level = i % 5 == 0 ? "Warning" : "Info",
-            //        message = string.Format(messages[random.Next(messages.Length)], i),
-            //        timestamp = DateTime.Now
-            //    };
+            for (var i = 0; i < 50000; i++)
+            {
+                var payload = new
+                {
+                    app = "VALVE - Reception Tool",
+                    level = i % 5 == 0 ? "Warning" : "Info",
+                    message = string.Format(messages[random.Next(messages.Length)], i),
+                    timestamp = DateTime.Now
+                };
 
-            //    var res = await http.PostAsJsonAsync(endpoint, payload);
-            //    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Sent #{i} -> {(int)res.StatusCode}");
+                var res = await http.PostAsJsonAsync(endpoint, payload);
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Sent #{i} -> {(int)res.StatusCode}");
 
-            //    await Task.Delay(1000);
-            //}
+                //await Task.Delay(1000);
+            }
         }
     }
 }

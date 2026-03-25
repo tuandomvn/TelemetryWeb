@@ -15,7 +15,7 @@ namespace TelemetryWeb.Pages.Telemetry
             _store = store;
         }
 
-        public IActionResult OnGet(string id, DateTimeOffset? timestamp)
+        public IActionResult OnGet(string id, DateTime? timestamp)
         {
             if (string.IsNullOrWhiteSpace(id))
             {
